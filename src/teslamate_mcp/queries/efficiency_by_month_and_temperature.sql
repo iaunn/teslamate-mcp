@@ -6,7 +6,7 @@ WITH monthly_stats AS (
         COUNT(d.id) as drive_count
     FROM drives d
         JOIN cars c ON d.car_id = c.id
-    WHERE d.start_date >= CURRENT_DATE - INTERVAL '12 months'
+    WHERE true /* FILTERS */
     GROUP BY c.id,
         c.name,
         DATE_TRUNC('month', d.start_date)

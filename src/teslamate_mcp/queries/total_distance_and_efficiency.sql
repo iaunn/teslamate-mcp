@@ -6,6 +6,7 @@ SELECT c.name as car_name,
     ROUND(AVG(d.speed_max)::numeric, 1) as avg_max_speed
 FROM drives d
     JOIN cars c ON d.car_id = c.id
+WHERE true /* FILTERS */
 GROUP BY c.id,
     c.name
 ORDER BY total_distance_km DESC;

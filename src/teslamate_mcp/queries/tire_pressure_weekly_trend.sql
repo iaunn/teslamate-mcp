@@ -16,7 +16,7 @@ WHERE p.tpms_pressure_fl IS NOT NULL
     AND p.tpms_pressure_fr IS NOT NULL
     AND p.tpms_pressure_rl IS NOT NULL
     AND p.tpms_pressure_rr IS NOT NULL
-    AND p.date >= CURRENT_DATE - INTERVAL '90 days'
+    /* FILTERS */
 GROUP BY c.id,
     c.name,
     DATE_TRUNC('week', p.date)

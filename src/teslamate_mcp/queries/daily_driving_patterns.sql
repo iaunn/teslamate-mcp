@@ -21,6 +21,7 @@ SELECT c.name as car_name,
     AVG(d.distance) as avg_distance_km
 FROM drives d
     JOIN cars c ON d.car_id = c.id
+WHERE true /* FILTERS */
 GROUP BY c.name,
     EXTRACT(
         DOW

@@ -1,2 +1,6 @@
 name = "get_monthly_driving_summary"
 description = "Get the monthly driving summary for each car. Provides monthly statistics for distance, energy usage, and costs."
+
+[filters]
+car_column = "d.car_id"
+date_column = "d.start_date"

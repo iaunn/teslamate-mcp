@@ -7,6 +7,7 @@ SELECT a.display_name as location,
     SUM(COALESCE(cp.cost, 0)) as total_cost
 FROM charging_processes cp
     JOIN addresses a ON cp.address_id = a.id
+WHERE true /* FILTERS */
 GROUP BY a.id,
     a.display_name,
     a.city

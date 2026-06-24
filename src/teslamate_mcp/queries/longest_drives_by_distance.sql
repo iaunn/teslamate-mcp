@@ -10,5 +10,6 @@ FROM drives d
     JOIN cars c ON d.car_id = c.id
     LEFT JOIN addresses start_addr ON d.start_address_id = start_addr.id
     LEFT JOIN addresses end_addr ON d.end_address_id = end_addr.id
+WHERE true /* FILTERS */
 ORDER BY d.distance DESC
 LIMIT 10;

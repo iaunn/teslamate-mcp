@@ -8,4 +8,5 @@ SELECT c.name as car_name,
     ) / 60 as update_duration_min
 FROM updates u
     JOIN cars c ON u.car_id = c.id
+WHERE true /* FILTERS */
 ORDER BY u.start_date DESC;

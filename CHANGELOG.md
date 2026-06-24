@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+- Optional `car_id`, `start_date`, and `end_date` parameters on the predefined query tools. Each tool exposes only the filters it can honour (drive/charge/position-based tools get all three; "latest snapshot" and car-info tools get `car_id` only). Filter columns are declared per query in a `[filters]` table in each `.toml` sidecar and spliced into the SQL at a `/* FILTERS */` marker; values are always passed as bound parameters, and column names are validated against an identifier allowlist.
+- Unit tests covering filter-clause building, default-window override semantics, malformed-date rejection, unsupported-filter errors, and per-tool schema exposure.
+
+### Changed
+- The four queries that previously hard-coded a look-back window (battery degradation 24mo, daily battery usage 30d, monthly efficiency 12mo, tire pressure 90d) now apply that window as a `default_days` default that an explicit `start_date` overrides, so callers can widen or narrow the range instead of being silently capped.
+
 ## [0.3.1] - 2026-05-21
 
 ### Fixed

@@ -16,6 +16,7 @@ FROM drives d
 WHERE d.distance > 0
     AND d.start_rated_range_km > d.end_rated_range_km
     AND d.outside_temp_avg IS NOT NULL
+    /* FILTERS */
 GROUP BY c.name,
     CASE
         WHEN d.outside_temp_avg < 0 THEN 'Below 0°C'

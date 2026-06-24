@@ -1,2 +1,6 @@
 name = "get_charging_by_location"
 description = "Get the charging by location for each car. Shows charging patterns and statistics grouped by location."
+
+[filters]
+car_column = "cp.car_id"
+date_column = "cp.start_date"

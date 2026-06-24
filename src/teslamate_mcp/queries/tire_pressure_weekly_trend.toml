@@ -1,2 +1,7 @@
 name = "get_tire_pressure_weekly_trends"
 description = "Get the tire pressure weekly trends for each car. Monitors tire pressure changes and patterns by week."
+
+[filters]
+car_column = "p.car_id"
+date_column = "p.date"
+default_days = 90
