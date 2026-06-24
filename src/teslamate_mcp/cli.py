@@ -75,13 +75,15 @@ def http(host: str | None, port: int | None, auth_token: str | None, json_respon
     _configure_logging(settings.log_level)
     mcp = create_server(settings)
 
+    # `streamable_http_app()` builds the session manager from this flag, so it
+    # must be set first. The FastMCP setting is named `json_response`.
+    if json_response:
+        mcp.settings.json_response = True
+
     # FastMCP exposes a Starlette app for streamable-http; we wrap it for auth
     # and mount a small /health probe alongside it.
     app = mcp.streamable_http_app()
     app.router.routes.append(Route("/health", _health, methods=["GET"]))
-    if json_response:
-        # The FastMCP attribute lives on the session manager; set it before serving.
-        mcp.settings.streamable_http_json_response = True  # type: ignore[attr-defined]
 
     token = settings.auth_token.get_secret_value() if settings.auth_token else ""
     if token:
