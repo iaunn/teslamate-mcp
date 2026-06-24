@@ -13,17 +13,22 @@ from teslamate_mcp.tools.registry import (
     PredefinedTool,
     build_filter_clause,
     discover_predefined_tools,
+    render_sql,
 )
 
 
-def test_discover_finds_all_eighteen_bundled_tools() -> None:
+def test_discover_finds_all_bundled_tools() -> None:
     tools = discover_predefined_tools()
     names = {t.name for t in tools}
-    assert len(tools) == 18
+    assert len(tools) == 24
     # Spot-check that a few expected tools are present.
     assert "get_basic_car_information" in names
     assert "get_battery_health_summary" in names
     assert "get_unusual_power_consumption" in names
+    # Tools ported from the TeslaMate Grafana dashboards.
+    assert "get_drive_details" in names
+    assert "get_vampire_drain" in names
+    assert "get_dc_charging_curve" in names
 
 
 def test_each_tool_has_nonempty_metadata() -> None:
@@ -129,6 +134,16 @@ def test_default_window_applies_only_without_start_date() -> None:
 def test_no_filters_yields_empty_clause() -> None:
     tool = PredefinedTool(name="t", description="d", sql="...", source="t.sql")
     assert build_filter_clause(tool, car_id=None, start_date=None, end_date=None) == ("", [])
+
+
+def test_render_sql_escapes_literal_percent_only_when_binding() -> None:
+    sql = "SELECT 1 -- 100% charge\nWHERE true /* FILTERS */"
+    # With params bound, a literal `%` is doubled while the spliced `%s` is kept.
+    rendered = render_sql(sql, "AND d.car_id = %s", [1])
+    assert "100%% charge" in rendered
+    assert rendered.endswith("AND d.car_id = %s")
+    # Without params, psycopg does no `%` processing, so nothing is escaped.
+    assert render_sql(sql, "", []) == "SELECT 1 -- 100% charge\nWHERE true "
 
 
 def test_date_filter_rejected_when_unsupported() -> None:

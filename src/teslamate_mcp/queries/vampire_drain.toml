@@ -1,0 +1,6 @@
+name = "get_vampire_drain"
+description = "Get idle (vampire) battery drain while parked: for each gap between consecutive drives where the car was not driven or charged, the range lost, energy lost, and loss-per-hour. Ported from the TeslaMate Vampire Drain dashboard."
+
+[filters]
+car_column = "d.car_id"
+date_column = "d.start_date"

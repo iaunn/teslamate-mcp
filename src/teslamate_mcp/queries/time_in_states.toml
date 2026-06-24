@@ -1,0 +1,6 @@
+name = "get_time_in_states"
+description = "Get how much time each car spent in each tracked state (online, asleep, offline, etc.), with occurrence counts and total hours. Ported from the TeslaMate States dashboard."
+
+[filters]
+car_column = "s.car_id"
+date_column = "s.start_date"

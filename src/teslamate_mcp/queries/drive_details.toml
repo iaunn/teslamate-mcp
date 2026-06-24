@@ -1,0 +1,6 @@
+name = "get_drive_details"
+description = "List individual drives (most recent first, capped at 100) with start/end location, distance, duration, battery levels, energy consumption, and speed. Ported from the TeslaMate Drives dashboard."
+
+[filters]
+car_column = "d.car_id"
+date_column = "d.start_date"

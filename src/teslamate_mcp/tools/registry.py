@@ -157,6 +157,19 @@ def build_filter_clause(
     return " ".join(conditions), params
 
 
+def render_sql(sql: str, clause: str, params: list[Any]) -> str:
+    """Splice the filter clause into the query, escaping literal `%` when binding.
+
+    psycopg only treats `%` as a placeholder marker when params are bound, so a
+    literal `%` in the static SQL (e.g. "100%" in a comment) must be doubled
+    first. The clause is spliced in afterwards so its own `%s` markers survive.
+    """
+    sql_text = sql.replace("%", "%%") if params else sql
+    if FILTER_MARKER in sql_text:
+        return sql_text.replace(FILTER_MARKER, clause)
+    return sql_text
+
+
 def register_predefined_tools(mcp: FastMCP, tools: list[PredefinedTool]) -> None:
     """Attach each predefined tool to the FastMCP server.
 
@@ -187,7 +200,7 @@ async def _execute(
     clause, params = build_filter_clause(
         tool, car_id=car_id, start_date=start_date, end_date=end_date
     )
-    final_sql = tool.sql.replace(FILTER_MARKER, clause) if FILTER_MARKER in tool.sql else tool.sql
+    final_sql = render_sql(tool.sql, clause, params)
 
     pool = ctx.request_context.lifespan_context.pool
     await ctx.info(f"Running {tool.name} ({tool.source})" + (f" with {clause}" if clause else ""))
