@@ -1,2 +1,6 @@
 name = "get_most_visited_locations"
 description = "Get the most visited locations for each car. Shows frequently visited places with visit counts and durations."
+
+[filters]
+car_column = "d.car_id"
+date_column = "d.start_date"

@@ -6,7 +6,7 @@ SELECT c.name as car_name,
 FROM positions p
     JOIN cars c ON p.car_id = c.id
 WHERE p.battery_level = 100 -- Only look at 100% charge
-    AND p.date >= CURRENT_DATE - INTERVAL '24 months'
+    /* FILTERS */
 GROUP BY c.id,
     c.name,
     DATE_TRUNC('month', p.date)

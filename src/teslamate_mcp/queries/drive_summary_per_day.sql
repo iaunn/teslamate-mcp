@@ -3,5 +3,6 @@ SELECT DATE(start_date) AS drive_day,
     SUM(distance) AS total_km,
     SUM(duration_min) AS total_minutes
 FROM drives
+WHERE true /* FILTERS */
 GROUP BY drive_day
 ORDER BY drive_day DESC;

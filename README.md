@@ -18,7 +18,8 @@ A [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes
 
 ## Features
 
-- **20 tools** — 18 predefined analytics queries (battery, charging, driving, efficiency, locations) plus `run_sql` and `get_database_schema`
+- **26 tools** — 24 predefined analytics queries (battery, charging, driving, efficiency, locations, plus per-drive logs, vampire drain, DC charging curve, charging cost, state time, and projected range ported from the TeslaMate Grafana dashboards) plus `run_sql` and `get_database_schema`
+- **Optional filtering** — every predefined query accepts an optional `car_id` (and, where it makes sense, `start_date`/`end_date` in `YYYY-MM-DD`) so multi-car owners and time-windowed questions no longer have to drop down to `run_sql`. Values are bound as query parameters, never interpolated
 - **6 prompts** — one-click workflows for battery health, driving summary, charging behaviour, anomaly hunting, weather efficiency, and a quick status report
 - **2 resources** — `teslamate://queries` and `teslamate://queries/{name}` for catalog browsing without invoking a tool
 - **Hardened `run_sql`** — runs inside a PostgreSQL `READ ONLY` transaction with `statement_timeout`, `lock_timeout`, and an automatic row cap

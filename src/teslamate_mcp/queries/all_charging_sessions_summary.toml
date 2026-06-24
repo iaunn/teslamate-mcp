@@ -1,2 +1,6 @@
 name = "get_all_charging_sessions_summary"
 description = "Get the summary of all charging sessions for each car. Returns charging statistics including total sessions, energy consumed, and costs."
+
+[filters]
+car_column = "cp.car_id"
+date_column = "cp.start_date"

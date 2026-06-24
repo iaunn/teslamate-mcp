@@ -1,2 +1,7 @@
 name = "get_efficiency_by_month_and_temperature"
 description = "Get the efficiency by month and temperature for each car. Analyzes how seasonal temperature changes affect vehicle efficiency."
+
+[filters]
+car_column = "d.car_id"
+date_column = "d.start_date"
+default_days = 365

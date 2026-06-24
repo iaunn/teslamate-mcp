@@ -1,2 +1,6 @@
 name = "get_total_distance_and_efficiency"
 description = "Get the total distance and efficiency for each car. Provides lifetime statistics for distance traveled and energy efficiency."
+
+[filters]
+car_column = "d.car_id"
+date_column = "d.start_date"

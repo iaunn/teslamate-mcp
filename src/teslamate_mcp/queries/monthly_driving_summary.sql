@@ -8,6 +8,7 @@ SELECT c.name as car_name,
     MAX(d.speed_max) as max_speed_reached
 FROM drives d
     JOIN cars c ON d.car_id = c.id
+WHERE true /* FILTERS */
 GROUP BY c.id,
     c.name,
     DATE_TRUNC('month', d.start_date)

@@ -8,6 +8,7 @@ FROM drives d
         d.start_address_id = a.id
         OR d.end_address_id = a.id
     )
+WHERE true /* FILTERS */
 GROUP BY a.id,
     a.display_name,
     a.city,

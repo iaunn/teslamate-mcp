@@ -1,2 +1,6 @@
 name = "get_drive_summary_per_day"
 description = "Get the drive summary per day for each car. Provides daily driving statistics including distance, duration, and efficiency."
+
+[filters]
+car_column = "car_id"
+date_column = "start_date"

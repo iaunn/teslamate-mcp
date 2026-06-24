@@ -1,0 +1,7 @@
+name = "get_projected_range_history"
+description = "Get the projected full-charge (100%) rated range per month, extrapolated from every data point (not just full charges), as a degradation indicator. Ported from the TeslaMate Projected Range dashboard. Defaults to the last 365 days unless a date range is given."
+
+[filters]
+car_column = "p.car_id"
+date_column = "p.date"
+default_days = 365

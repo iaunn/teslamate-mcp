@@ -20,5 +20,6 @@ WHERE d.distance > 0
     AND (
         (d.start_rated_range_km - d.end_rated_range_km) / d.distance * 100
     ) > 150 -- More than 150% consumption
+    /* FILTERS */
 ORDER BY consumption_pct DESC
 LIMIT 10;
