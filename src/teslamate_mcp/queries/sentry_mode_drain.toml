@@ -1,0 +1,29 @@
+name = "get_sentry_mode_drain"
+description = "Breaks down parked time into sentry mode vs normal standby (online/asleep) to analyze battery drain."
+
+[[params]]
+name = "car_name"
+type = "string"
+description = "Optional car name to filter by"
+
+[[params]]
+name = "days"
+type = "integer"
+description = "Number of past days to analyze (default 30)"
+default = 30
+
+[[output]]
+name = "car_name"
+type = "string"
+
+[[output]]
+name = "state"
+type = "string"
+
+[[output]]
+name = "occurrences"
+type = "integer"
+
+[[output]]
+name = "total_hours"
+type = "number"

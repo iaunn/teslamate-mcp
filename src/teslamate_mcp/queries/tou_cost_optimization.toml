@@ -1,0 +1,43 @@
+name = "get_tou_cost_optimization"
+description = "Calculates potential savings by shifting all home charging to off-peak hours."
+
+[[params]]
+name = "car_name"
+type = "string"
+description = "Optional car name to filter by"
+
+[[params]]
+name = "days"
+type = "integer"
+description = "Number of past days to analyze (default 30)"
+default = 30
+
+[[params]]
+name = "off_peak_rate"
+type = "number"
+description = "Electricity cost per kWh during off-peak hours"
+default = 2.6
+
+[[output]]
+name = "car_name"
+type = "string"
+
+[[output]]
+name = "charging_sessions"
+type = "integer"
+
+[[output]]
+name = "total_energy_kwh"
+type = "number"
+
+[[output]]
+name = "actual_cost"
+type = "number"
+
+[[output]]
+name = "optimal_cost"
+type = "number"
+
+[[output]]
+name = "potential_savings"
+type = "number"

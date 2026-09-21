@@ -1,0 +1,57 @@
+name = "get_trip_energy_predictor"
+description = "Predicts energy usage (rated range lost) for frequent trips based on historical drives."
+
+[[params]]
+name = "car_name"
+type = "string"
+description = "Optional car name to filter by"
+
+[[params]]
+name = "start_location"
+type = "string"
+description = "Optional start location name (fuzzy match)"
+
+[[params]]
+name = "end_location"
+type = "string"
+description = "Optional end location name (fuzzy match)"
+
+[[params]]
+name = "min_trips"
+type = "integer"
+description = "Minimum number of historical trips required between these locations to include in the result"
+default = 3
+
+[[params]]
+name = "limit"
+type = "integer"
+description = "Maximum number of routes to return"
+default = 10
+
+[[output]]
+name = "start_location"
+type = "string"
+
+[[output]]
+name = "end_location"
+type = "string"
+
+[[output]]
+name = "trip_count"
+type = "integer"
+
+[[output]]
+name = "avg_distance_km"
+type = "number"
+
+[[output]]
+name = "avg_range_used_km"
+type = "number"
+
+[[output]]
+name = "efficiency_factor"
+type = "number"
+
+[[output]]
+name = "avg_duration_min"
+type = "number"

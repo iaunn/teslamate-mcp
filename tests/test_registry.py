@@ -8,13 +8,7 @@ import pytest
 
 from teslamate_mcp.config import Settings
 from teslamate_mcp.server import create_server
-from teslamate_mcp.tools.registry import (
-    FILTER_MARKER,
-    PredefinedTool,
-    build_filter_clause,
-    discover_predefined_tools,
-    render_sql,
-)
+from teslamate_mcp.tools.registry import discover_predefined_tools
 
 _DUMMY_DB_URL = "postgresql://teslamate:secret@example.test/teslamate"
 
@@ -22,7 +16,7 @@ _DUMMY_DB_URL = "postgresql://teslamate:secret@example.test/teslamate"
 def test_discover_finds_all_bundled_tools() -> None:
     tools = discover_predefined_tools()
     names = {t.name for t in tools}
-    assert len(tools) == 30
+    assert len(tools) == 35
     # Spot-check that a few expected tools are present.
     assert "get_basic_car_information" in names
     assert "get_battery_health_summary" in names

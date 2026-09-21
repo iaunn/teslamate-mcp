@@ -1,0 +1,31 @@
+name = "get_service_tracker"
+description = "Provides maintenance reminders (tire rotation, cabin filter) based on current odometer readings."
+
+[[params]]
+name = "car_name"
+type = "string"
+description = "Optional car name to filter by"
+
+[[output]]
+name = "car_name"
+type = "string"
+
+[[output]]
+name = "current_odometer_km"
+type = "number"
+
+[[output]]
+name = "km_until_next_tire_rotation"
+type = "number"
+
+[[output]]
+name = "km_until_next_cabin_filter"
+type = "number"
+
+[[output]]
+name = "total_tire_rotations_due"
+type = "number"
+
+[[output]]
+name = "total_cabin_filters_due"
+type = "number"

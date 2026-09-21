@@ -1,0 +1,41 @@
+name = "get_speeding_analysis"
+description = "Analyzes driver profile by looking at high-speed drives and their impact on efficiency."
+
+[[params]]
+name = "car_name"
+type = "string"
+description = "Optional car name to filter by"
+
+[[params]]
+name = "days"
+type = "integer"
+description = "Number of past days to analyze (default 90)"
+default = 90
+
+[[output]]
+name = "car_name"
+type = "string"
+
+[[output]]
+name = "total_drives"
+type = "integer"
+
+[[output]]
+name = "avg_drive_distance_km"
+type = "number"
+
+[[output]]
+name = "max_speed_recorded_kmh"
+type = "number"
+
+[[output]]
+name = "drives_over_120_kmh"
+type = "integer"
+
+[[output]]
+name = "drives_over_140_kmh"
+type = "integer"
+
+[[output]]
+name = "avg_efficiency"
+type = "number"
