@@ -1,6 +1,38 @@
 name = "get_charging_cost_by_month"
 description = "Get monthly charging cost and energy added per car, including the average cost per kWh. Ported from the TeslaMate Charging Stats dashboard."
 
-[filters]
-car_column = "cp.car_id"
-date_column = "cp.start_date"
+
+[[output]]
+name = "car_name"
+type = "string"
+
+[[output]]
+name = "month"
+type = "string"
+
+[[output]]
+name = "sessions"
+type = "integer"
+
+[[output]]
+name = "energy_added_kwh"
+type = "number"
+
+[[output]]
+name = "total_cost"
+type = "number"
+
+[[output]]
+name = "avg_cost_per_kwh"
+type = "number"
+
+[[params]]
+name = "car_name"
+type = "string"
+description = "Optional car name to filter by"
+
+[[params]]
+name = "days"
+type = "integer"
+description = "Number of past days to analyze (default 30)"
+default = 30

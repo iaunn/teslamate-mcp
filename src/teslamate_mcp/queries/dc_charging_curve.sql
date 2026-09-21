@@ -9,7 +9,8 @@ FROM charges ch
     JOIN charging_processes cp ON cp.id = ch.charging_process_id
     JOIN cars c ON c.id = cp.car_id
 WHERE ch.charger_power > 0
-    AND ch.fast_charger_present /* FILTERS */
+    AND ch.charger_power > 25
+    AND (%(car_name)s::text IS NULL OR c.name ILIKE '%%' || %(car_name)s || '%%')
 GROUP BY c.id,
     c.name,
     ch.battery_level

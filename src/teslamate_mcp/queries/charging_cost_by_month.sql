@@ -11,7 +11,9 @@ SELECT c.name AS car_name,
     ) AS avg_cost_per_kwh
 FROM charging_processes cp
     JOIN cars c ON cp.car_id = c.id
-WHERE cp.charge_energy_added > 0 /* FILTERS */
+WHERE cp.charge_energy_added > 0
+    AND (%(car_name)s::text IS NULL OR c.name ILIKE '%%' || %(car_name)s || '%%')
+    AND cp.start_date >= CURRENT_DATE - make_interval(days => %(days)s::int)
 GROUP BY c.id,
     c.name,
     DATE_TRUNC('month', cp.start_date)

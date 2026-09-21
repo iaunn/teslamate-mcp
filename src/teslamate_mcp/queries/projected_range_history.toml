@@ -1,7 +1,31 @@
 name = "get_projected_range_history"
 description = "Get the projected full-charge (100%) rated range per month, extrapolated from every data point (not just full charges), as a degradation indicator. Ported from the TeslaMate Projected Range dashboard. Defaults to the last 365 days unless a date range is given."
 
-[filters]
-car_column = "p.car_id"
-date_column = "p.date"
 default_days = 365
+
+[[output]]
+name = "car_name"
+type = "string"
+
+[[output]]
+name = "month"
+type = "string"
+
+[[output]]
+name = "projected_range_at_100pct_km"
+type = "number"
+
+[[output]]
+name = "data_points"
+type = "integer"
+
+[[params]]
+name = "car_name"
+type = "string"
+description = "Optional car name to filter by"
+
+[[params]]
+name = "days"
+type = "integer"
+description = "Number of past days to analyze (default 365)"
+default = 365

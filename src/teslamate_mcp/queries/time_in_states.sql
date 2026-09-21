@@ -7,7 +7,8 @@ SELECT c.name AS car_name,
     ) AS total_hours
 FROM states s
     JOIN cars c ON c.id = s.car_id
-WHERE true /* FILTERS */
+WHERE (%(car_name)s::text IS NULL OR c.name ILIKE '%%' || %(car_name)s || '%%')
+    AND s.start_date >= CURRENT_DATE - make_interval(days => %(days)s::int)
 GROUP BY c.id,
     c.name,
     s.state

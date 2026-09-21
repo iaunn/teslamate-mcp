@@ -1,7 +1,25 @@
 name = "get_dc_charging_curve"
 description = "Get the median DC fast-charging power (kW) at each battery state of charge, revealing the charge-rate curve and where it tapers. Ported from the TeslaMate Charges dashboard. Defaults to the last 365 days unless a date range is given."
 
-[filters]
-car_column = "cp.car_id"
-date_column = "ch.date"
 default_days = 365
+
+[[output]]
+name = "car_name"
+type = "string"
+
+[[output]]
+name = "soc"
+type = "number"
+
+[[output]]
+name = "median_power_kw"
+type = "number"
+
+[[output]]
+name = "sample_count"
+type = "integer"
+
+[[params]]
+name = "car_name"
+type = "string"
+description = "Optional car name to filter by"
