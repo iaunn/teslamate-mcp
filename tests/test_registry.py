@@ -1,4 +1,4 @@
-"""Unit tests for predefined-tool discovery."""
+"""Unit tests for predefined-tool discovery and generated tool schemas."""
 
 from __future__ import annotations
 
@@ -16,26 +16,54 @@ from teslamate_mcp.tools.registry import (
     render_sql,
 )
 
+_DUMMY_DB_URL = "postgresql://teslamate:secret@example.test/teslamate"
+
 
 def test_discover_finds_all_bundled_tools() -> None:
     tools = discover_predefined_tools()
     names = {t.name for t in tools}
-    assert len(tools) == 24
+    assert len(tools) == 30
     # Spot-check that a few expected tools are present.
     assert "get_basic_car_information" in names
     assert "get_battery_health_summary" in names
     assert "get_unusual_power_consumption" in names
-    # Tools ported from the TeslaMate Grafana dashboards.
+    assert "search_drives" in names
+    assert "search_charging_sessions" in names
     assert "get_drive_details" in names
+    assert "get_charging_curve" in names
+    assert "get_charging_costs" in names
+    assert "get_battery_capacity_trend" in names
     assert "get_vampire_drain" in names
-    assert "get_dc_charging_curve" in names
+    assert "get_charging_efficiency" in names
+    assert "get_charging_by_geofence" in names
+    assert "get_soc_hygiene" in names
+    assert "get_period_comparison" in names
+    assert "get_drive_route" in names
+
+
+def _first_statement_keyword(sql: str) -> str:
+    """The SQL text with any leading `--` header comment stripped."""
+    lines = [line for line in sql.strip().splitlines() if not line.lstrip().startswith("--")]
+    return "\n".join(lines).strip().upper()
 
 
 def test_each_tool_has_nonempty_metadata() -> None:
     for tool in discover_predefined_tools():
-        assert tool.name.startswith("get_")
+        assert tool.name.startswith(("get_", "search_"))
         assert len(tool.description) > 20
-        assert tool.sql.strip().upper().startswith(("SELECT", "WITH"))
+        assert _first_statement_keyword(tool.sql).startswith(("SELECT", "WITH"))
+
+
+def test_every_tool_accepts_a_car_scope_or_is_id_scoped() -> None:
+    # Every predefined report should be filterable by car unless it targets a
+    # single entity by id (drive/charging session detail tools).
+    id_scoped = {"get_drive_details", "get_charging_curve", "get_drive_route"}
+    for tool in discover_predefined_tools():
+        param_names = {p.name for p in tool.params}
+        if tool.name in id_scoped:
+            assert param_names & {"drive_id", "charging_process_id"}
+        else:
+            assert "car_name" in param_names, tool.name
 
 
 def test_missing_sidecar_raises(tmp_path: Path) -> None:
@@ -53,133 +81,114 @@ def test_malformed_sidecar_raises(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_tool_schemas_do_not_expose_context_argument() -> None:
-    settings = Settings(database_url="postgresql://teslamate:secret@example.test/teslamate")  # type: ignore[call-arg]
+    settings = Settings(database_url=_DUMMY_DB_URL)  # type: ignore[call-arg]
     mcp = create_server(settings)
 
+    for tool in await mcp.list_tools():
+        schema = tool.input_schema
+        assert "ctx" not in schema.get("properties", {}), tool.name
+        assert "ctx" not in schema.get("required", []), tool.name
+
     tools = {tool.name: tool for tool in await mcp.list_tools()}
-
-    for name in [
-        "get_basic_car_information",
-        "get_database_schema",
-        "run_sql",
-    ]:
-        schema = tools[name].inputSchema
-        assert "ctx" not in schema.get("properties", {})
-        assert "ctx" not in schema.get("required", [])
-    assert tools["run_sql"].inputSchema["required"] == ["query"]
-
-
-# --- Filter metadata and clause building -----------------------------------
-
-
-def test_every_bundled_tool_supports_car_filtering() -> None:
-    for tool in discover_predefined_tools():
-        assert tool.car_column, f"{tool.name} should declare a car_column"
-        assert FILTER_MARKER in tool.sql, f"{tool.name} is missing the {FILTER_MARKER} marker"
+    assert tools["run_sql"].input_schema["required"] == ["query"]
 
 
 @pytest.mark.asyncio
-async def test_filterable_tools_expose_only_supported_params() -> None:
-    settings = Settings(database_url="postgresql://teslamate:secret@example.test/teslamate")  # type: ignore[call-arg]
+async def test_parameterized_tool_schemas() -> None:
+    settings = Settings(database_url=_DUMMY_DB_URL)  # type: ignore[call-arg]
     mcp = create_server(settings)
     tools = {tool.name: tool for tool in await mcp.list_tools()}
 
-    # A drive-based tool filters by both car and date.
-    assert set(tools["get_monthly_driving_summary"].inputSchema["properties"]) == {
-        "car_id",
-        "start_date",
-        "end_date",
-    }
-    # A "latest snapshot" tool only filters by car.
-    assert set(tools["get_current_car_status"].inputSchema["properties"]) == {"car_id"}
-    assert set(tools["get_basic_car_information"].inputSchema["properties"]) == {"car_id"}
+    search = tools["search_drives"].input_schema
+    props = search["properties"]
+    assert {"type": "string"} in props["car_name"]["anyOf"]  # nullable string
+    assert props["car_name"]["default"] is None
+    assert props["limit"]["default"] == 50
+    assert props["limit"]["minimum"] == 1
+    assert props["limit"]["maximum"] == 500
+    assert props["order_by"]["enum"] == ["start_date", "distance", "duration"]
+    assert props["order_by"]["default"] == "start_date"
+    assert search.get("required", []) == []
+
+    details = tools["get_drive_details"].input_schema
+    assert details["required"] == ["drive_id"]
+    assert details["properties"]["drive_id"]["type"] == "integer"
+
+    degradation = tools["get_battery_degradation_over_time"].input_schema
+    assert degradation["properties"]["days"]["default"] == 730
+
+    costs = tools["get_charging_costs"].input_schema
+    assert costs["properties"]["group_by"]["enum"] == ["month", "location", "car"]
+
+    vampire = tools["get_vampire_drain"].input_schema
+    assert vampire["properties"]["min_gap_hours"]["default"] == 5.0
+    assert vampire["properties"]["limit"]["default"] == 20
+    assert vampire.get("required", []) == []
+
+    route = tools["get_drive_route"].input_schema
+    assert route["required"] == ["drive_id"]
+    assert route["properties"]["max_points"]["default"] == 200
+
+    comparison = tools["get_period_comparison"].input_schema
+    assert comparison["properties"]["days"]["default"] == 30
+
+    schema_tool = tools["get_database_schema"].input_schema
+    assert "table" in schema_tool["properties"]
+    assert "table" not in schema_tool.get("required", [])
+    assert schema_tool["properties"]["refresh"]["default"] is False
 
 
-_DRIVE = PredefinedTool(
-    name="t",
-    description="d",
-    sql="SELECT 1 WHERE true /* FILTERS */",
-    source="t.sql",
-    car_column="d.car_id",
-    date_column="d.start_date",
-    default_days=365,
-)
-_CAR_ONLY = PredefinedTool(name="t", description="d", sql="...", source="t.sql", car_column="c.id")
+def _row_properties(output_schema: dict) -> dict:
+    """Resolve the {result: [$ref]} wrapper to the row model's properties."""
+    items = output_schema["properties"]["result"]["items"]
+    if "$ref" in items:
+        name = items["$ref"].rsplit("/", 1)[-1]
+        return output_schema["$defs"][name]["properties"]
+    return items.get("properties", {})
 
 
-def test_clause_combines_car_and_explicit_date_range() -> None:
-    clause, params = build_filter_clause(
-        _DRIVE, car_id=2, start_date="2024-01-01", end_date="2024-03-31"
-    )
-    assert clause == (
-        "AND d.car_id = %s AND d.start_date >= %s::date "
-        "AND d.start_date < (%s::date + INTERVAL '1 day')"
-    )
-    assert params == [2, "2024-01-01", "2024-03-31"]
+@pytest.mark.asyncio
+async def test_typed_output_schemas_from_toml() -> None:
+    settings = Settings(database_url=_DUMMY_DB_URL)  # type: ignore[call-arg]
+    mcp = create_server(settings)
+    tools = {tool.name: tool for tool in await mcp.list_tools()}
+
+    # Every predefined tool declares [[output]] and gets per-column typing.
+    for t in discover_predefined_tools():
+        assert t.output, f"{t.source} has no [[output]] declaration"
+        props = _row_properties(tools[t.name].output_schema)
+        assert set(props) == {c.name for c in t.output}, t.name
+
+    details = _row_properties(tools["get_drive_details"].output_schema)
+    assert {"type": "integer"} in details["drive_id"]["anyOf"]  # nullable int
+    assert {"type": "string"} in details["car_name"]["anyOf"]
+    assert {"type": "number"} in details["distance_km"]["anyOf"]
+
+    # run_sql stays deliberately untyped (arbitrary SELECTs).
+    run_sql_items = tools["run_sql"].output_schema["properties"]["result"]["items"]
+    assert run_sql_items.get("additionalProperties") is True
 
 
-def test_default_window_applies_only_without_start_date() -> None:
-    clause, params = build_filter_clause(_DRIVE, car_id=None, start_date=None, end_date=None)
-    assert clause == "AND d.start_date >= CURRENT_DATE - make_interval(days => %s)"
-    assert params == [365]
+def test_output_contract_violations_raise(tmp_path: Path) -> None:
+    (tmp_path / "q.sql").write_text("SELECT 1 AS a", encoding="utf-8")
+    base = 'name = "x"\ndescription = "a perfectly valid description here"\n'
 
-    # An explicit start_date overrides the default window instead of stacking.
-    clause, params = build_filter_clause(
-        _DRIVE, car_id=None, start_date="2020-01-01", end_date=None
-    )
-    assert clause == "AND d.start_date >= %s::date"
-    assert params == ["2020-01-01"]
-
-
-def test_no_filters_yields_empty_clause() -> None:
-    tool = PredefinedTool(name="t", description="d", sql="...", source="t.sql")
-    assert build_filter_clause(tool, car_id=None, start_date=None, end_date=None) == ("", [])
-
-
-def test_render_sql_escapes_literal_percent_only_when_binding() -> None:
-    sql = "SELECT 1 -- 100% charge\nWHERE true /* FILTERS */"
-    # With params bound, a literal `%` is doubled while the spliced `%s` is kept.
-    rendered = render_sql(sql, "AND d.car_id = %s", [1])
-    assert "100%% charge" in rendered
-    assert rendered.endswith("AND d.car_id = %s")
-    # Without params, psycopg does no `%` processing, so nothing is escaped.
-    assert render_sql(sql, "", []) == "SELECT 1 -- 100% charge\nWHERE true "
-
-
-def test_date_filter_rejected_when_unsupported() -> None:
-    with pytest.raises(ValueError, match="does not support filtering by date"):
-        build_filter_clause(_CAR_ONLY, car_id=None, start_date="2024-01-01", end_date=None)
-
-
-def test_car_filter_rejected_when_unsupported() -> None:
-    tool = PredefinedTool(name="t", description="d", sql="...", source="t.sql")
-    with pytest.raises(ValueError, match="does not support filtering by car_id"):
-        build_filter_clause(tool, car_id=1, start_date=None, end_date=None)
-
-
-@pytest.mark.parametrize("bad", ["01-2024", "2024/01/01", "2024-1-1", "yesterday", ""])
-def test_malformed_dates_rejected(bad: str) -> None:
-    with pytest.raises(ValueError, match="YYYY-MM-DD"):
-        build_filter_clause(_DRIVE, car_id=None, start_date=bad, end_date=None)
-
-
-def test_sidecar_with_filters_but_no_marker_raises(tmp_path: Path) -> None:
-    (tmp_path / "q.sql").write_text("SELECT 1", encoding="utf-8")  # no marker
     (tmp_path / "q.toml").write_text(
-        'name = "get_q"\ndescription = "a long enough description here"\n'
-        '[filters]\ncar_column = "c.id"\n',
-        encoding="utf-8",
+        base + '[[output]]\nname = "a"\ntype = "decimal"\n', encoding="utf-8"
     )
-    with pytest.raises(ValueError, match=r"no .* marker"):
+    with pytest.raises(ValueError, match="unknown type"):
         discover_predefined_tools(tmp_path)
 
-
-def test_sidecar_with_invalid_column_raises(tmp_path: Path) -> None:
-    (tmp_path / "q.sql").write_text(f"SELECT 1 WHERE true {FILTER_MARKER}", encoding="utf-8")
     (tmp_path / "q.toml").write_text(
-        'name = "get_q"\ndescription = "a long enough description here"\n'
-        '[filters]\ncar_column = "c.id; DROP TABLE cars"\n',
+        base
+        + '[[output]]\nname = "a"\ntype = "integer"\n[[output]]\nname = "a"\ntype = "integer"\n',
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="invalid filter column"):
+    with pytest.raises(ValueError, match="duplicate output column"):
+        discover_predefined_tools(tmp_path)
+
+    (tmp_path / "q.toml").write_text(
+        base + '[[output]]\nname = "a"\ntype = "integer"\nextra = 1\n', encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="unknown output key"):
         discover_predefined_tools(tmp_path)

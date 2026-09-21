@@ -4,13 +4,208 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
-### Added
-- Six new predefined tools ported from the TeslaMate Grafana dashboards, all filterable by `car_id`/date: `get_drive_details` (per-drive log), `get_charging_cost_by_month`, `get_dc_charging_curve` (median fast-charge power vs SoC), `get_vampire_drain` (idle range/energy loss between drives), `get_time_in_states`, and `get_projected_range_history` (degradation extrapolated from every data point). Brings the predefined-query catalog to 24 tools. Each was validated by `EXPLAIN`-ing it against a Postgres instance with a TeslaMate-shaped schema.
-- Optional `car_id`, `start_date`, and `end_date` parameters on the predefined query tools. Each tool exposes only the filters it can honour (drive/charge/position-based tools get all three; "latest snapshot" and car-info tools get `car_id` only). Filter columns are declared per query in a `[filters]` table in each `.toml` sidecar and spliced into the SQL at a `/* FILTERS */` marker; values are always passed as bound parameters, and column names are validated against an identifier allowlist.
-- Unit tests covering filter-clause building, default-window override semantics, malformed-date rejection, unsupported-filter errors, and per-tool schema exposure.
+## [0.10.1] - 2026-08-03
+
+### Fixed
+- **`/health` could return 500 instead of 503.** The 0.10.0 probe took the
+  first line of `str(exc)` to build its `detail` field, but an empty message
+  has no lines at all — and `asyncio.timeout` raises exactly that, a bare
+  `TimeoutError`. So the most likely failure the probe exists to report, a
+  database too slow to answer within 3s, crashed the probe instead of
+  reporting `degraded`. Regression-tested.
 
 ### Changed
-- The four queries that previously hard-coded a look-back window (battery degradation 24mo, daily battery usage 30d, monthly efficiency 12mo, tire pressure 90d) now apply that window as a `default_days` default that an explicit `start_date` overrides, so callers can widen or narrow the range instead of being silently capped.
+- **`env.example` now defaults to a read-only role.** TeslaMate's own Compose
+  sets `POSTGRES_USER=teslamate`, making that role a superuser. Pointing
+  `DATABASE_URL` at it leaves every write blocked but still permits
+  superuser-only *read* functions through `run_sql` — `pg_read_file`,
+  `pg_ls_dir`, `pg_authid`. `SECURITY.md` now documents this explicitly, with
+  the `CREATE ROLE` snippet and two other known limitations (the row cap is
+  bypassable by a nested `LIMIT`; `/health` is unauthenticated by design).
+- The Unraid + Cloudflare walkthrough moved from `deploy/unraid/` to the
+  [wiki](https://github.com/cobanov/teslamate-mcp/wiki/Unraid-Deployment). The
+  Community Applications template stays in the repository.
+
+## [0.10.0] - 2026-08-02
+
+### Fixed
+- **`get_battery_health_summary` and `get_current_car_status` never returned on
+  a large database.** Both selected the newest position per car with a
+  correlated subquery — `WHERE p.date = (SELECT MAX(date) FROM positions p2
+  WHERE p2.car_id = p.car_id)` — which re-scans the whole `positions` table
+  once per candidate row. On a 3.1M-row table PostgreSQL costed the plan at
+  ~2.6e11 and it never completed. Both now take the latest position through a
+  `LATERAL` top-1 driven from `cars`, which also lets the `car_name` filter cut
+  the set before any positions lookup: 0.9s and 1.1s respectively on the same
+  database, against no result at all before.
+- **A slow query could pin a PostgreSQL backend indefinitely.** The predefined
+  query path (`fetch_all`) set no `statement_timeout`, so a pathological query
+  hung the MCP client with no error while the server kept burning CPU — and
+  killing the client did not cancel the server-side query. The pool now sets a
+  connection-level `statement_timeout` bounding every query it runs, tunable
+  with the new `STATEMENT_TIMEOUT_MS` (default 30s) and skipped when
+  `DATABASE_URL` carries its own libpq `options=`.
+- **`/health` reported `ok` while the server could not serve at all.** The
+  probe never touched the database, so a container whose pool could not reach
+  PostgreSQL — every MCP call returning 500 — was still marked healthy by the
+  Docker `HEALTHCHECK`. It now performs a real `SELECT 1` (3s cap) and returns
+  `503` with `{"status": "degraded", "database": "unreachable", "detail": …}`
+  when that fails.
+
+### Added
+- `STATEMENT_TIMEOUT_MS` setting (default `30000`).
+- `/health` now reports a `database` field alongside `status` and `version`.
+
+### Changed
+- README rewritten and cut roughly in half; the reference material it used to
+  carry now lives in the [wiki](https://github.com/cobanov/teslamate-mcp/wiki)
+  (tool reference, configuration, deployment, writing queries, write tools,
+  development).
+
+## [0.9.1] - 2026-08-01
+
+### Fixed
+- **Visible "Resource links are not currently supported" noise in Claude
+  Desktop** on every `show_*` app tool result. 0.8.0 prepended a result-level
+  `resource_link` block as a second chart-rendering signal; it never triggered
+  rendering, and newer Claude Desktop builds surface an unsupported-notice for
+  the block instead of silently ignoring it. App tools now rely solely on the
+  spec's tool-level `_meta.ui.resourceUri` binding — results are link-free
+  again (regression-tested).
+
+## [0.9.0] - 2026-08-01
+
+### Added
+- **Seven new analytics queries** (23 → 30 predefined tools):
+  - `get_battery_capacity_trend` — usable battery capacity in kWh estimated from
+    charging sessions (energy added ÷ SOC gained), monthly per car. A real
+    energy-based degradation signal, unlike the rated-range heuristics.
+  - `get_vampire_drain` — rated range lost while parked between consecutive
+    drives, excluding any gap that contains a charging session.
+  - `get_charging_efficiency` — kWh added vs kWh drawn per car, split AC vs DC
+    (DC detected via charge samples with no charger phases).
+  - `get_charging_by_geofence` — charging totals per TeslaMate geofence
+    (Home/Work…), with sessions outside every geofence as "Ungeofenced".
+  - `get_soc_hygiene` — share of position samples above 80% / below 20% SOC.
+  - `get_period_comparison` — last N days vs the N days before, one row per
+    metric across driving and charging, with percent change.
+  - `get_drive_route` — NTILE-downsampled GPS track points for one drive.
+- **Two new MCP Apps** (`ui://` charts): `show_battery_degradation` (multi-car
+  monthly rated-range trend with legend and per-car deltas) and
+  `show_drive_route` (pure-SVG route map with start/end markers, scale bar,
+  hover readouts). `apps_ui.py` is now spec-driven: app tools are built from a
+  declarative `APP_SPECS` tuple via the registry's shared handler factory, so
+  an app tool's params, tz injection, and typed output schema can never drift
+  from its backing query (this also fixed the app path missing `%(tz)s`
+  injection).
+- **Confirmation before charging-cost writes**: `set_charging_cost` asks the
+  user via MCP elicitation when the client supports it (declarative
+  `Resolve`/`Elicit`, which works on the stateless 2026-07-28 transport).
+  Clients without form elicitation keep the previous direct-write behavior.
+- `get_database_schema(refresh=true)` re-reads `information_schema` on a
+  running server; previously DDL changes were only picked up on restart.
+- Tests for the previously untested `auth.py`, `prompts.py`, and
+  `resources.py`, including a cross-check that every tool name referenced in a
+  prompt is a registered tool (renames now fail CI instead of silently
+  breaking prompts).
+
+## [0.8.0] - 2026-07-29
+
+### Added
+- Typed per-column `outputSchema` for all 23 predefined tools via `[[output]]`
+  tables in the `.toml` contract (advisory: nullable fields, extras allowed).
+- `ResourceLinkedApps`: UI-bound tool results carry a result-level
+  `resource_link` block in addition to tool `_meta.ui`.
+- Optional OpenTelemetry export (`telemetry.py`) when
+  `OTEL_EXPORTER_OTLP_ENDPOINT` is set; no-op otherwise.
+
+## [0.7.0] - 2026-07-29
+
+### Added
+- **MCP Apps pilot**: `show_charging_curve` renders an interactive
+  charging-curve chart in-conversation (self-contained `ui://` HTML app,
+  ext-apps spec 2026-01-26), degrading to plain rows on non-Apps clients.
+
+## [0.6.1] - 2026-07-29
+
+### Fixed
+- Portal sync: serve `/mcp` and `/mcp/` directly (`NormalizeMcpPathMiddleware`)
+  instead of 307-redirecting, which broke Cloudflare portal capability sync.
+
+## [0.6.0] - 2026-07-29
+
+### Changed
+- Migrated to MCP Python SDK v2 (`MCPServer`, spec 2026-07-28): dual-era
+  server (stateless new era + legacy `initialize` handshake), lifespan runs
+  once per process and owns the pool, stdlib logging replaces the deprecated
+  `ctx.info()`, 1 h `ttl_ms` cache hints on list endpoints, Docker CMD runs
+  `--json-response --stateless`.
+
+## [0.5.1] - 2026-07-04
+
+### Fixed
+- **Postgres connection exhaustion under real client traffic.** FastMCP runs the lifespan per
+  MCP *session*, and the lifespan opened a new connection pool every time; streamable-HTTP
+  clients (claude.ai, MCP portals) open sessions freely and rarely terminate them, so pools —
+  and their connections — accumulated until Postgres refused new connections
+  (`remaining connection slots are reserved…`), which crashed the transport's task group and
+  turned every subsequent request into `500: Task group is not initialized`. All sessions now
+  share a single pool + schema cache created in `create_server`; the lifespan opens it
+  idempotently, never closes it per-session, and never raises (a failed init logs and retries
+  on the next session, with individual tool calls surfacing the DB error instead of killing
+  the transport). The HTTP app closes the pool on ASGI shutdown.
+
+## [0.5.0] - 2026-07-04
+
+### Added
+- **Opt-in charging-cost writes**: new `set_charging_cost(charging_process_id, cost)` tool and
+  a `backfill_costs_from_receipts` prompt, registered only when `ENABLE_CHARGING_WRITES=true`
+  (default off). Designed for the receipt-backfill workflow: match receipts to sessions with
+  `search_charging_sessions`, then write each price. Writes go through a dedicated
+  `db.execute_write` path (parameterized UPDATE ... RETURNING, committed); the recommended
+  database boundary is a column-scoped grant — `GRANT UPDATE (cost) ON charging_processes TO
+  <role>;` — so nothing outside that single column can ever be modified, regardless of code.
+  `run_sql` remains READ ONLY + forced rollback; the declarative query registry remains
+  read-only by design. Tests cover flag gating, the end-to-end write, and prove the
+  column-scoped grant blocks writes to other columns.
+
+## [0.4.0] - 2026-07-04
+
+### Added
+- **Typed tool parameters**: the `.toml` sidecar contract now supports `[[params]]` tables
+  (name, type, description, required, default, minimum/maximum, enum). Declared params are
+  validated at startup, surfaced in each tool's MCP input schema with types/defaults/constraints,
+  and bound to `%(name)s` placeholders via psycopg — never interpolated into SQL text.
+- All 18 predefined queries now accept optional filters (`car_name` everywhere; `days` windows;
+  `limit`, and per-tool thresholds like `min_swing_pct`/`threshold_pct`). Zero-argument calls
+  return exactly what they returned before — defaults mirror the old hardcoded values.
+- **Five new tools**: `search_drives` (date range, location text, distance bounds, sort),
+  `search_charging_sessions`, `get_drive_details(drive_id)`, `get_charging_curve
+  (charging_process_id)` (NTILE-downsampled curve from the `charges` table), and
+  `get_charging_costs` (group by month/location/car).
+- `REPORT_TIMEZONE` setting (IANA name, default `UTC`): daily/weekly/monthly buckets in the
+  reporting queries are computed in this timezone via `AT TIME ZONE` binding.
+- `get_database_schema` now takes an optional `table` argument: omit it for a compact
+  table list with column counts, pass a table name for full column detail.
+- Discovery-time SQL lint: undeclared/unused placeholders and unescaped literal `%` in
+  parameterized queries fail fast at startup.
+- Test suite: TOML contract validation tests, generated-schema assertions, and an end-to-end
+  suite that runs every bundled tool against a seeded TeslaMate-shaped Postgres (testcontainers),
+  including timezone bucketing and param binding.
+
+### Changed
+- All tool descriptions rewritten to be accurate and information-dense (units, grouping,
+  default windows, available filters). Three descriptions that claimed per-car grouping for
+  fleet-wide aggregates (`get_drive_summary_per_day`, `get_charging_by_location`,
+  `get_most_visited_locations`) are corrected.
+- `fetch_all` accepts dict params for named-placeholder binding.
+- `list-tools` prints each tool's parameter names.
+- The `teslamate://queries` resource index includes each query's param names.
+
+### Fixed
+- `get_battery_health_summary` failed at runtime with `function round(double precision, integer)
+  does not exist` — the health percentage expression lacked a `::numeric` cast. Caught by the
+  new run-every-tool e2e test.
 
 ## [0.3.1] - 2026-05-21
 

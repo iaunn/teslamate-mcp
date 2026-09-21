@@ -1,41 +1,38 @@
-WITH drive_seq AS (
+WITH parked AS (
     SELECT d.car_id,
-        d.start_date,
-        d.end_date,
-        d.start_rated_range_km,
+        d.end_date AS gap_start,
+        LEAD(d.start_date) OVER (PARTITION BY d.car_id ORDER BY d.start_date) AS gap_end,
         d.end_rated_range_km,
-        d.start_km,
-        d.end_km
+        LEAD(d.start_rated_range_km) OVER (PARTITION BY d.car_id ORDER BY d.start_date)
+            AS next_start_rated_range_km,
+        d.end_address_id
     FROM drives d
-    WHERE true /* FILTERS */
-),
-parked AS (
-    SELECT car_id,
-        LAG(end_date) OVER w AS park_start,
-        start_date AS park_end,
-        LAG(end_rated_range_km) OVER w AS start_range,
-        start_rated_range_km AS end_range,
-        LAG(end_km) OVER w AS start_km,
-        start_km AS end_km
-    FROM drive_seq
-    WINDOW w AS (PARTITION BY car_id ORDER BY start_date)
 )
 SELECT c.name AS car_name,
-    p.park_start,
-    p.park_end,
-    ROUND((EXTRACT(EPOCH FROM (p.park_end - p.park_start)) / 3600)::numeric, 2) AS parked_hours,
-    ROUND((p.start_range - p.end_range)::numeric, 1) AS rated_range_lost_km,
-    ROUND(((p.start_range - p.end_range) * c.efficiency)::numeric, 2) AS energy_lost_kwh,
-    ROUND(
-        (
-            (p.start_range - p.end_range) / NULLIF(EXTRACT(EPOCH FROM (p.park_end - p.park_start)) / 3600, 0)
-        )::numeric,
-        3
-    ) AS range_lost_per_hour_km
+    p.gap_start,
+    p.gap_end,
+    ROUND((EXTRACT(EPOCH FROM (p.gap_end - p.gap_start)) / 3600.0)::numeric, 1) AS gap_hours,
+    ROUND((p.end_rated_range_km - p.next_start_rated_range_km)::numeric, 1) AS range_loss_km,
+    ROUND(((p.end_rated_range_km - p.next_start_rated_range_km)
+        / NULLIF(EXTRACT(EPOCH FROM (p.gap_end - p.gap_start)) / 3600.0, 0))::numeric, 2)
+        AS loss_km_per_hour,
+    a.display_name AS location
 FROM parked p
-    JOIN cars c ON c.id = p.car_id
-WHERE p.park_start IS NOT NULL
-    AND EXTRACT(EPOCH FROM (p.park_end - p.park_start)) > 3600 -- parked at least an hour
-    AND (p.start_range - p.end_range) >= 0 -- excludes intervals where charging happened
-    AND (p.end_km - p.start_km) < 1 -- excludes any driving between the two records
-ORDER BY p.park_start DESC;
+    JOIN cars c ON p.car_id = c.id
+    LEFT JOIN addresses a ON p.end_address_id = a.id
+WHERE p.gap_end IS NOT NULL
+    AND EXTRACT(EPOCH FROM (p.gap_end - p.gap_start)) / 3600.0 >= %(min_gap_hours)s::float8
+    AND p.end_rated_range_km - p.next_start_rated_range_km >= 0
+    -- Inclusive overlap: a charge starting exactly when the next drive starts
+    -- (or ending exactly when the gap begins) still disqualifies the gap.
+    AND NOT EXISTS (
+        SELECT 1
+        FROM charging_processes cp
+        WHERE cp.car_id = p.car_id
+            AND cp.start_date <= p.gap_end
+            AND COALESCE(cp.end_date, now()) >= p.gap_start
+    )
+    AND p.gap_start >= CURRENT_DATE - make_interval(days => %(days)s::int)
+    AND (%(car_name)s::text IS NULL OR c.name ILIKE '%%' || %(car_name)s || '%%')
+ORDER BY range_loss_km DESC
+LIMIT %(limit)s::int;
