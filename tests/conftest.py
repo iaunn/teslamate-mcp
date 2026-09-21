@@ -70,7 +70,8 @@ CREATE TABLE charges (id SERIAL PRIMARY KEY, charging_process_id INTEGER, date T
     battery_level SMALLINT, charger_power SMALLINT, charger_voltage INTEGER,
     charger_actual_current SMALLINT, charger_phases SMALLINT,
     rated_battery_range_km DOUBLE PRECISION, outside_temp DOUBLE PRECISION);
-CREATE TABLE positions (id SERIAL PRIMARY KEY, car_id SMALLINT, date TIMESTAMP,
+DROP TABLE IF EXISTS states; CREATE TABLE states (id SERIAL PRIMARY KEY, car_id SMALLINT, state TEXT, start_date TIMESTAMP, end_date TIMESTAMP);
+    CREATE TABLE positions (id SERIAL PRIMARY KEY, car_id SMALLINT, date TIMESTAMP,
     latitude DOUBLE PRECISION, longitude DOUBLE PRECISION, battery_level SMALLINT,
     usable_battery_level SMALLINT, rated_battery_range_km DOUBLE PRECISION,
     ideal_battery_range_km DOUBLE PRECISION, est_battery_range_km DOUBLE PRECISION,
