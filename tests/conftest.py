@@ -49,7 +49,7 @@ DROP TABLE IF EXISTS charges, charging_processes, drives, positions, updates,
 CREATE TABLE car_settings (id BIGINT PRIMARY KEY, enabled BOOLEAN DEFAULT TRUE,
     free_supercharging BOOLEAN DEFAULT FALSE);
 CREATE TABLE cars (id SMALLINT PRIMARY KEY, name TEXT, model TEXT, trim_badging TEXT,
-    exterior_color TEXT, marketing_name TEXT, settings_id BIGINT REFERENCES car_settings(id));
+    exterior_color TEXT, marketing_name TEXT, efficiency DOUBLE PRECISION DEFAULT 0.152, settings_id BIGINT REFERENCES car_settings(id));
 CREATE TABLE addresses (id BIGINT PRIMARY KEY, display_name TEXT, city TEXT, state TEXT,
     latitude DOUBLE PRECISION, longitude DOUBLE PRECISION);
 CREATE TABLE geofences (id BIGINT PRIMARY KEY, name TEXT, latitude DOUBLE PRECISION,
