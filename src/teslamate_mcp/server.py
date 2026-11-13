@@ -22,6 +22,7 @@ from .tools import (
     discover_predefined_tools,
     register_charging_write_tools,
     register_custom_sql,
+    register_expense_write_tools,
     register_predefined_tools,
     register_schema_tool,
 )
@@ -114,6 +115,7 @@ def create_server(settings: Settings) -> MCPServer:
     )
     if settings.enable_charging_writes:
         register_charging_write_tools(mcp)
+        register_expense_write_tools(mcp)
     register_resources(mcp, tools)
     register_prompts(mcp)
     logger.info(
