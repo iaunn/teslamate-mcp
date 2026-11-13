@@ -1,0 +1,97 @@
+name = "get_toll_transactions"
+description = "List Easy Pass toll deductions and top-up transactions from ledger.toll_transactions, enriched with EXAT plaza name, lane, balance before/after, and matched TeslaMate drive_id and odometer. Optional filters: car_name, card_name, tx_type (TOLL, TOPUP), plaza, and local calendar date range."
+
+[[params]]
+name = "car_name"
+type = "string"
+description = "Case-insensitive substring match on the car's name. Omit for all cars."
+
+[[params]]
+name = "card_name"
+type = "string"
+description = "Case-insensitive substring match on the Easy Pass card label (e.g. Tesla, Civic)."
+
+[[params]]
+name = "tx_type"
+type = "string"
+description = "Transaction type filter: TOLL or TOPUP."
+enum = ["TOLL", "TOPUP"]
+
+[[params]]
+name = "plaza"
+type = "string"
+description = "Case-insensitive substring match on the toll plaza name."
+
+[[params]]
+name = "start_date"
+type = "string"
+description = "Earliest local calendar date to include, ISO format (YYYY-MM-DD)."
+
+[[params]]
+name = "end_date"
+type = "string"
+description = "Latest local calendar date to include, ISO format (YYYY-MM-DD)."
+
+[[params]]
+name = "limit"
+type = "integer"
+description = "Maximum number of rows returned."
+default = 50
+minimum = 1
+maximum = 500
+
+[[output]]
+name = "transaction_id"
+type = "integer"
+
+[[output]]
+name = "car_name"
+type = "string"
+
+[[output]]
+name = "card_name"
+type = "string"
+
+[[output]]
+name = "card_number"
+type = "string"
+
+[[output]]
+name = "transaction_time"
+type = "string"
+
+[[output]]
+name = "tx_type"
+type = "string"
+
+[[output]]
+name = "plaza_name"
+type = "string"
+
+[[output]]
+name = "lane"
+type = "string"
+
+[[output]]
+name = "amount"
+type = "number"
+
+[[output]]
+name = "balance_before"
+type = "number"
+
+[[output]]
+name = "balance_after"
+type = "number"
+
+[[output]]
+name = "drive_id"
+type = "integer"
+
+[[output]]
+name = "odometer_km"
+type = "number"
+
+[[output]]
+name = "location_hint"
+type = "string"

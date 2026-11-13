@@ -1,0 +1,40 @@
+name = "get_total_cost_of_ownership"
+description = "Summarize total vehicle cost of ownership across all categories (CHARGING, TOLL, INSURANCE, TIRE, REPAIR) from ledger.v_all_car_costs, grouped by category or month."
+
+[[params]]
+name = "group_by"
+type = "string"
+description = "Grouping dimension for cost breakdown: by category or by month."
+default = "category"
+enum = ["category", "month"]
+
+[[params]]
+name = "car_name"
+type = "string"
+description = "Case-insensitive substring match on the car's name. Omit for all cars."
+
+[[params]]
+name = "start_date"
+type = "string"
+description = "Earliest local calendar date to include, ISO format (YYYY-MM-DD)."
+
+[[params]]
+name = "end_date"
+type = "string"
+description = "Latest local calendar date to include, ISO format (YYYY-MM-DD)."
+
+[[output]]
+name = "group_key"
+type = "string"
+
+[[output]]
+name = "category"
+type = "string"
+
+[[output]]
+name = "tx_count"
+type = "integer"
+
+[[output]]
+name = "total_cost"
+type = "number"

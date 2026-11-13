@@ -155,6 +155,133 @@ SELECT 1, TIMESTAMP '2026-01-15 22:30:00' + (n * 3 || ' minutes')::interval,
 FROM generate_series(0, 11) AS n;
 INSERT INTO updates (car_id, version, start_date, end_date) VALUES
     (1, '2026.20.1', now() - interval '5 days', now() - interval '5 days' + interval '25 min');
+
+CREATE SCHEMA IF NOT EXISTS ledger;
+DROP TABLE IF EXISTS ledger.toll_transactions, ledger.car_expenses CASCADE;
+
+CREATE TABLE ledger.toll_transactions (
+    id SERIAL PRIMARY KEY,
+    car_id INT REFERENCES public.cars(id),
+    card_number VARCHAR(32) NOT NULL,
+    card_name VARCHAR(64),
+    license_plate VARCHAR(64),
+    transaction_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    clearing_time TIMESTAMPTZ,
+    tx_type VARCHAR(16) NOT NULL CHECK (tx_type IN ('TOLL', 'TOPUP')),
+    raw_desc VARCHAR(64),
+    plaza_name VARCHAR(128),
+    lane VARCHAR(32),
+    amount NUMERIC(10, 2) NOT NULL,
+    balance_before NUMERIC(10, 2) NOT NULL,
+    balance_after NUMERIC(10, 2) NOT NULL,
+    drive_id INT REFERENCES public.drives(id),
+    latitude NUMERIC(10, 6),
+    longitude NUMERIC(10, 6),
+    odometer_km NUMERIC(10, 2),
+    location_hint TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT toll_transactions_card_time_bal_key UNIQUE (card_number, transaction_time, balance_after)
+);
+
+CREATE TABLE ledger.car_expenses (
+    id SERIAL PRIMARY KEY,
+    car_id INT REFERENCES public.cars(id) DEFAULT 1,
+    expense_date DATE NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    details TEXT,
+    cost NUMERIC(10, 2) NOT NULL,
+    odometer_km NUMERIC(10, 2),
+    latitude NUMERIC(10, 6),
+    longitude NUMERIC(10, 6),
+    maps_url TEXT,
+    attachments JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (car_id, expense_date, title, cost)
+);
+
+CREATE OR REPLACE VIEW ledger.v_all_car_costs AS
+SELECT
+    cp.car_id,
+    cp.start_date AS event_time_utc,
+    (cp.start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Bangkok') AS bangkok_time,
+    'CHARGING'::VARCHAR(50) AS category,
+    COALESCE('Charge @ ' || COALESCE(g.name, a.display_name, a.city, 'Unknown'), 'EV Charging') AS title,
+    CONCAT('Added ', ROUND(cp.charge_energy_added::numeric, 2), ' kWh (', cp.start_battery_level, '% -> ', cp.end_battery_level, '%)') AS details,
+    ROUND(cp.cost::numeric, 2) AS cost,
+    NULL::numeric(10,2) AS odometer_km,
+    NULL::numeric(10,6) AS latitude,
+    NULL::numeric(10,6) AS longitude
+FROM public.charging_processes cp
+LEFT JOIN public.addresses a ON a.id = cp.address_id
+LEFT JOIN public.geofences g ON g.id = cp.geofence_id
+WHERE cp.cost IS NOT NULL AND cp.cost > 0
+
+UNION ALL
+
+SELECT
+    t.car_id,
+    (t.transaction_time AT TIME ZONE 'UTC') AS event_time_utc,
+    (t.transaction_time AT TIME ZONE 'Asia/Bangkok') AS bangkok_time,
+    'TOLL'::VARCHAR(50) AS category,
+    CONCAT('ด่าน', COALESCE(NULLIF(t.plaza_name, ''), 'ทางด่วน'), CASE WHEN t.lane IS NOT NULL AND t.lane <> '' THEN ' (ช่อง ' || t.lane || ')' ELSE '' END) AS title,
+    CONCAT('Card ', t.card_number, ' • Bal: ', t.balance_before, ' -> ', t.balance_after, ' THB', CASE WHEN t.location_hint IS NOT NULL THEN ' • ' || t.location_hint ELSE '' END) AS details,
+    t.amount AS cost,
+    t.odometer_km,
+    t.latitude,
+    t.longitude
+FROM ledger.toll_transactions t
+WHERE t.tx_type = 'TOLL'
+
+UNION ALL
+
+SELECT
+    e.car_id,
+    ((e.expense_date::timestamp) AT TIME ZONE 'Asia/Bangkok' AT TIME ZONE 'UTC') AS event_time_utc,
+    (e.expense_date::timestamp) AS bangkok_time,
+    e.category,
+    e.title,
+    e.details,
+    e.cost,
+    e.odometer_km,
+    e.latitude,
+    e.longitude
+FROM ledger.car_expenses e;
+
+CREATE OR REPLACE VIEW ledger.v_drives_with_tolls AS
+SELECT
+    d.id AS drive_id,
+    d.car_id,
+    (d.start_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Bangkok') AS start_bangkok_time,
+    (d.end_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Bangkok') AS end_bangkok_time,
+    COALESCE(sa.display_name, sa.city, 'Unknown') AS start_location,
+    COALESCE(ea.display_name, ea.city, 'Unknown') AS end_location,
+    ROUND(d.distance::numeric, 2) AS distance_km,
+    d.duration_min,
+    COALESCE(tolls.toll_count, 0) AS toll_count,
+    COALESCE(tolls.toll_cost, 0.00)::numeric(10,2) AS toll_cost,
+    tolls.plazas
+FROM public.drives d
+LEFT JOIN public.addresses sa ON sa.id = d.start_address_id
+LEFT JOIN public.addresses ea ON ea.id = d.end_address_id
+LEFT JOIN (
+    SELECT
+        drive_id,
+        COUNT(*) AS toll_count,
+        SUM(amount) AS toll_cost,
+        STRING_AGG(plaza_name || ' (' || amount::int || '฿)', ' -> ' ORDER BY transaction_time ASC) AS plazas
+    FROM ledger.toll_transactions
+    WHERE tx_type = 'TOLL' AND drive_id IS NOT NULL
+    GROUP BY drive_id
+) tolls ON tolls.drive_id = d.id;
+
+INSERT INTO ledger.car_expenses (car_id, expense_date, category, title, details, cost, odometer_km) VALUES
+    (1, CURRENT_DATE - 30, 'TIRE', 'Tire Rotation & Balancing', 'Forward Cross rotation', 550.00, 990.00),
+    (1, CURRENT_DATE - 10, 'INSURANCE', 'Insurance Renewal', 'First class insurance', 35924.00, 1000.00);
+
+INSERT INTO ledger.toll_transactions (car_id, card_number, card_name, transaction_time, tx_type, plaza_name, lane, amount, balance_before, balance_after, drive_id, odometer_km) VALUES
+    (1, '1864217099', 'Tesla', now() - interval '1 day', 'TOLL', 'ศรีสมาน (ขาเข้า)', '4', 45.00, 525.00, 480.00, 1, 1005.00);
 """
 
 

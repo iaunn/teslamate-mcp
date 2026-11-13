@@ -1,0 +1,69 @@
+name = "get_drives_with_tolls"
+description = "List drives that incurred Easy Pass toll deductions from ledger.v_drives_with_tolls, showing start/end locations, distance, duration, toll count, total toll cost, and the sequence of toll plazas passed."
+
+[[params]]
+name = "car_name"
+type = "string"
+description = "Case-insensitive substring match on the car's name. Omit for all cars."
+
+[[params]]
+name = "start_date"
+type = "string"
+description = "Earliest local calendar date to include, ISO format (YYYY-MM-DD)."
+
+[[params]]
+name = "end_date"
+type = "string"
+description = "Latest local calendar date to include, ISO format (YYYY-MM-DD)."
+
+[[params]]
+name = "limit"
+type = "integer"
+description = "Maximum number of rows returned."
+default = 50
+minimum = 1
+maximum = 500
+
+[[output]]
+name = "drive_id"
+type = "integer"
+
+[[output]]
+name = "car_name"
+type = "string"
+
+[[output]]
+name = "start_bangkok_time"
+type = "string"
+
+[[output]]
+name = "end_bangkok_time"
+type = "string"
+
+[[output]]
+name = "start_location"
+type = "string"
+
+[[output]]
+name = "end_location"
+type = "string"
+
+[[output]]
+name = "distance_km"
+type = "number"
+
+[[output]]
+name = "duration_min"
+type = "integer"
+
+[[output]]
+name = "toll_count"
+type = "integer"
+
+[[output]]
+name = "toll_cost"
+type = "number"
+
+[[output]]
+name = "plazas"
+type = "string"

@@ -1,0 +1,74 @@
+name = "get_car_expenses"
+description = "List vehicle maintenance, tire, insurance, and repair expenses from ledger.car_expenses. Optional filters: car_name, category (TIRE, INSURANCE, REPAIR, MAINTENANCE, ACCESSORY, OTHER), and local calendar date range."
+
+[[params]]
+name = "car_name"
+type = "string"
+description = "Case-insensitive substring match on the car's name. Omit for all cars."
+
+[[params]]
+name = "category"
+type = "string"
+description = "Expense category filter (e.g. TIRE, INSURANCE, REPAIR, MAINTENANCE)."
+
+[[params]]
+name = "start_date"
+type = "string"
+description = "Earliest expense date to include, ISO format (YYYY-MM-DD)."
+
+[[params]]
+name = "end_date"
+type = "string"
+description = "Latest expense date to include, ISO format (YYYY-MM-DD)."
+
+[[params]]
+name = "limit"
+type = "integer"
+description = "Maximum number of rows returned."
+default = 50
+minimum = 1
+maximum = 500
+
+[[output]]
+name = "expense_id"
+type = "integer"
+
+[[output]]
+name = "car_name"
+type = "string"
+
+[[output]]
+name = "expense_date"
+type = "string"
+
+[[output]]
+name = "category"
+type = "string"
+
+[[output]]
+name = "title"
+type = "string"
+
+[[output]]
+name = "details"
+type = "string"
+
+[[output]]
+name = "cost"
+type = "number"
+
+[[output]]
+name = "odometer_km"
+type = "number"
+
+[[output]]
+name = "latitude"
+type = "number"
+
+[[output]]
+name = "longitude"
+type = "number"
+
+[[output]]
+name = "maps_url"
+type = "string"

@@ -1,5 +1,5 @@
 name = "get_service_tracker"
-description = "Provides maintenance reminders (tire rotation, cabin filter) based on current odometer readings."
+description = "Provides maintenance reminders (tire rotation, cabin filter) based on current odometer readings and actual recorded tire rotations in ledger.car_expenses."
 
 [[params]]
 name = "car_name"
@@ -12,6 +12,14 @@ type = "string"
 
 [[output]]
 name = "current_odometer_km"
+type = "number"
+
+[[output]]
+name = "last_tire_rotation_odometer_km"
+type = "number"
+
+[[output]]
+name = "km_since_last_tire_rotation"
 type = "number"
 
 [[output]]
