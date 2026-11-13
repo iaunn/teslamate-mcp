@@ -21,7 +21,7 @@ from mcp.server.mcpserver import (
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
-from ..db import execute_query, execute_write
+from ..db import execute_write, fetch_all
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +155,7 @@ def register_expense_write_tools(mcp: MCPServer) -> None:
 
         # Look up latest position / odometer if omitted
         if odometer_km is None or latitude is None or longitude is None:
-            pos_rows = await execute_query(pool, _LOOKUP_POSITION_SQL, {"car_id": car_id})
+            pos_rows = await fetch_all(pool, _LOOKUP_POSITION_SQL, {"car_id": car_id})
             if pos_rows:
                 latest = pos_rows[0]
                 if odometer_km is None and latest.get("odometer_km") is not None:
