@@ -259,10 +259,24 @@ SELECT
     COALESCE(ea.display_name, ea.city, 'Unknown') AS end_location,
     ROUND(d.distance::numeric, 2) AS distance_km,
     d.duration_min,
+    ROUND(GREATEST(COALESCE((d.start_rated_range_km - d.end_rated_range_km) * c.efficiency, 0), 0)::numeric, 2) AS energy_kwh,
+    ROUND(COALESCE(cr.rate, 4.20)::numeric, 2) AS kwh_rate,
+    ROUND((GREATEST(COALESCE((d.start_rated_range_km - d.end_rated_range_km) * c.efficiency, 0), 0) * COALESCE(cr.rate, 4.20))::numeric, 2) AS electric_cost,
     COALESCE(tolls.toll_count, 0) AS toll_count,
     COALESCE(tolls.toll_cost, 0.00)::numeric(10,2) AS toll_cost,
+    ROUND((
+        GREATEST(COALESCE((d.start_rated_range_km - d.end_rated_range_km) * c.efficiency, 0), 0) * COALESCE(cr.rate, 4.20)
+        + COALESCE(tolls.toll_cost, 0.00)
+    )::numeric, 2) AS total_trip_cost,
+    ROUND((
+        (
+            GREATEST(COALESCE((d.start_rated_range_km - d.end_rated_range_km) * c.efficiency, 0), 0) * COALESCE(cr.rate, 4.20)
+            + COALESCE(tolls.toll_cost, 0.00)
+        ) / NULLIF(d.distance, 0)
+    )::numeric, 2) AS cost_per_km,
     tolls.plazas
 FROM public.drives d
+JOIN public.cars c ON c.id = d.car_id
 LEFT JOIN public.addresses sa ON sa.id = d.start_address_id
 LEFT JOIN public.addresses ea ON ea.id = d.end_address_id
 LEFT JOIN (
@@ -274,7 +288,17 @@ LEFT JOIN (
     FROM ledger.toll_transactions
     WHERE tx_type = 'TOLL' AND drive_id IS NOT NULL
     GROUP BY drive_id
-) tolls ON tolls.drive_id = d.id;
+) tolls ON tolls.drive_id = d.id
+LEFT JOIN LATERAL (
+    SELECT (cp.cost / cp.charge_energy_added) AS rate
+    FROM public.charging_processes cp
+    WHERE cp.car_id = d.car_id
+      AND cp.start_date <= d.start_date
+      AND cp.cost > 0
+      AND cp.charge_energy_added >= 2.0
+    ORDER BY cp.start_date DESC
+    LIMIT 1
+) cr ON TRUE;
 
 INSERT INTO ledger.car_expenses (car_id, expense_date, category, title, details, cost, odometer_km) VALUES
     (1, CURRENT_DATE - 30, 'TIRE', 'Tire Rotation & Balancing', 'Forward Cross rotation', 550.00, 990.00),

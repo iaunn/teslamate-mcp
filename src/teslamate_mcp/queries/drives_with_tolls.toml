@@ -17,6 +17,12 @@ type = "string"
 description = "Latest local calendar date to include, ISO format (YYYY-MM-DD)."
 
 [[params]]
+name = "only_with_tolls"
+type = "boolean"
+description = "If true (default), only return drives that passed at least one toll plaza. Set false to get True Trip Cost (electricity + toll) for all drives."
+default = true
+
+[[params]]
 name = "limit"
 type = "integer"
 description = "Maximum number of rows returned."
@@ -57,11 +63,31 @@ name = "duration_min"
 type = "integer"
 
 [[output]]
+name = "energy_kwh"
+type = "number"
+
+[[output]]
+name = "kwh_rate"
+type = "number"
+
+[[output]]
+name = "electric_cost"
+type = "number"
+
+[[output]]
 name = "toll_count"
 type = "integer"
 
 [[output]]
 name = "toll_cost"
+type = "number"
+
+[[output]]
+name = "total_trip_cost"
+type = "number"
+
+[[output]]
+name = "cost_per_km"
 type = "number"
 
 [[output]]
