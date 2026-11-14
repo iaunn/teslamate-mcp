@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-15
+
+### Fixed
+- **`get_period_comparison` windows were 7 hours off when the database
+  timezone is not UTC.** TeslaMate stores `start_date` as a naive UTC
+  timestamp, but the windows were cut against a bare `now()`, which follows
+  the session `TimeZone`. On a server running `Asia/Bangkok` the current
+  window started 7 hours late, so recent drives and charges near the boundary
+  fell into the wrong period. The bounds now use `now() AT TIME ZONE 'UTC'`.
+
 ## [0.10.1] - 2026-08-03
 
 ### Fixed

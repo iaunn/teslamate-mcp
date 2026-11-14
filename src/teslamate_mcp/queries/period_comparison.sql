@@ -1,36 +1,36 @@
-WITH drive_stats AS (
+-- TeslaMate stores naive UTC timestamps, so the windows are cut against
+-- "now" in UTC. A bare now() would follow the session timezone (the DB runs
+-- with TimeZone = Asia/Bangkok) and shift both windows by 7 hours.
+WITH bounds AS (
     SELECT
-        COALESCE(SUM(d.distance) FILTER (WHERE d.start_date >= now()
-            - make_interval(days => %(days)s::int)), 0) AS cur_distance,
-        COALESCE(SUM(d.distance) FILTER (WHERE d.start_date < now()
-            - make_interval(days => %(days)s)), 0) AS prev_distance,
-        COUNT(*) FILTER (WHERE d.start_date >= now()
-            - make_interval(days => %(days)s)) AS cur_drives,
-        COUNT(*) FILTER (WHERE d.start_date < now()
-            - make_interval(days => %(days)s)) AS prev_drives
+        (now() AT TIME ZONE 'UTC') - make_interval(days => %(days)s::int) AS cur_start,
+        (now() AT TIME ZONE 'UTC') - make_interval(days => 2 * %(days)s::int) AS prev_start
+),
+drive_stats AS (
+    SELECT
+        COALESCE(SUM(d.distance) FILTER (WHERE d.start_date >= b.cur_start), 0) AS cur_distance,
+        COALESCE(SUM(d.distance) FILTER (WHERE d.start_date < b.cur_start), 0) AS prev_distance,
+        COUNT(*) FILTER (WHERE d.start_date >= b.cur_start) AS cur_drives,
+        COUNT(*) FILTER (WHERE d.start_date < b.cur_start) AS prev_drives
     FROM drives d
         JOIN cars c ON d.car_id = c.id
-    WHERE d.start_date >= now() - make_interval(days => 2 * %(days)s)
+        CROSS JOIN bounds b
+    WHERE d.start_date >= b.prev_start
         AND (%(car_name)s::text IS NULL OR c.name ILIKE '%%' || %(car_name)s || '%%')
 ),
 charge_stats AS (
     SELECT
-        COALESCE(SUM(cp.charge_energy_added) FILTER (WHERE cp.start_date >= now()
-            - make_interval(days => %(days)s)), 0) AS cur_kwh,
-        COALESCE(SUM(cp.charge_energy_added) FILTER (WHERE cp.start_date < now()
-            - make_interval(days => %(days)s)), 0) AS prev_kwh,
-        COALESCE(SUM(cp.cost) FILTER (WHERE cp.start_date >= now()
-            - make_interval(days => %(days)s)), 0) AS cur_cost,
-        COALESCE(SUM(cp.cost) FILTER (WHERE cp.start_date < now()
-            - make_interval(days => %(days)s)), 0) AS prev_cost,
-        COUNT(*) FILTER (WHERE cp.start_date >= now()
-            - make_interval(days => %(days)s)) AS cur_sessions,
-        COUNT(*) FILTER (WHERE cp.start_date < now()
-            - make_interval(days => %(days)s)) AS prev_sessions
+        COALESCE(SUM(cp.charge_energy_added) FILTER (WHERE cp.start_date >= b.cur_start), 0) AS cur_kwh,
+        COALESCE(SUM(cp.charge_energy_added) FILTER (WHERE cp.start_date < b.cur_start), 0) AS prev_kwh,
+        COALESCE(SUM(cp.cost) FILTER (WHERE cp.start_date >= b.cur_start), 0) AS cur_cost,
+        COALESCE(SUM(cp.cost) FILTER (WHERE cp.start_date < b.cur_start), 0) AS prev_cost,
+        COUNT(*) FILTER (WHERE cp.start_date >= b.cur_start) AS cur_sessions,
+        COUNT(*) FILTER (WHERE cp.start_date < b.cur_start) AS prev_sessions
     FROM charging_processes cp
         JOIN cars c ON cp.car_id = c.id
-    WHERE cp.start_date >= now() - make_interval(days => 2 * %(days)s)
-        AND (%(car_name)s IS NULL OR c.name ILIKE '%%' || %(car_name)s || '%%')
+        CROSS JOIN bounds b
+    WHERE cp.start_date >= b.prev_start
+        AND (%(car_name)s::text IS NULL OR c.name ILIKE '%%' || %(car_name)s || '%%')
 )
 SELECT 'distance_km' AS metric,
     ROUND(ds.cur_distance::numeric, 1) AS current_value,
