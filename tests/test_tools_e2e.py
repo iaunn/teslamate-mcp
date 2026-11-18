@@ -237,6 +237,29 @@ async def test_period_comparison_windows(mcp_session) -> None:
         assert metrics["kwh_added"]["change_pct"] is None
 
 
+async def test_easypass_balance_latest_row_per_card(mcp_session) -> None:
+    async with mcp_session() as session:
+        rows = rows_from(await session.call_tool("get_easypass_balance", {}))
+        by_card = {r["card_name"]: r for r in rows}
+        assert set(by_card) == {"Tesla", "Civic"}
+        # Newest Tesla row is the TOLL a day ago, not the older top-up.
+        assert by_card["Tesla"]["balance"] == 480.0
+        assert by_card["Tesla"]["last_tx_type"] == "TOLL"
+        assert by_card["Tesla"]["is_low"] is False
+        # Card not linked to a car still shows, flagged low and stale.
+        assert by_card["Civic"]["balance"] == 25.0
+        assert by_card["Civic"]["is_low"] is True
+        assert by_card["Civic"]["days_since_update"] >= 59
+        # Freshest card first.
+        assert rows[0]["card_name"] == "Tesla"
+
+        civic = rows_from(await session.call_tool("get_easypass_balance", {"card_name": "civ"}))
+        assert [r["card_number"] for r in civic] == ["3801045675"]
+
+        strict = rows_from(await session.call_tool("get_easypass_balance", {"low_balance": 500}))
+        assert {r["card_name"]: r["is_low"] for r in strict} == {"Tesla": True, "Civic": True}
+
+
 async def test_drive_route_downsamples(mcp_session) -> None:
     async with mcp_session() as session:
         rows = rows_from(

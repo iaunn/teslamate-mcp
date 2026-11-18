@@ -16,7 +16,7 @@ _DUMMY_DB_URL = "postgresql://teslamate:secret@example.test/teslamate"
 def test_discover_finds_all_bundled_tools() -> None:
     tools = discover_predefined_tools()
     names = {t.name for t in tools}
-    assert len(tools) == 43
+    assert len(tools) == 44
     # Spot-check that a few expected tools are present.
     assert "get_basic_car_information" in names
     assert "get_battery_health_summary" in names
@@ -35,6 +35,7 @@ def test_discover_finds_all_bundled_tools() -> None:
     assert "get_drive_route" in names
     assert "get_car_expenses" in names
     assert "get_toll_transactions" in names
+    assert "get_easypass_balance" in names
     assert "get_drives_with_tolls" in names
     assert "get_total_cost_of_ownership" in names
 

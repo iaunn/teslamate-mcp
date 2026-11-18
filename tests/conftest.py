@@ -305,7 +305,9 @@ INSERT INTO ledger.car_expenses (car_id, expense_date, category, title, details,
     (1, CURRENT_DATE - 10, 'INSURANCE', 'Insurance Renewal', 'First class insurance', 35924.00, 1000.00);
 
 INSERT INTO ledger.toll_transactions (car_id, card_number, card_name, transaction_time, tx_type, plaza_name, lane, amount, balance_before, balance_after, drive_id, odometer_km) VALUES
-    (1, '1864217099', 'Tesla', now() - interval '1 day', 'TOLL', 'ศรีสมาน (ขาเข้า)', '4', 45.00, 525.00, 480.00, 1, 1005.00);
+    (1, '1864217099', 'Tesla', now() - interval '1 day', 'TOLL', 'ศรีสมาน (ขาเข้า)', '4', 45.00, 525.00, 480.00, 1, 1005.00),
+    (1, '1864217099', 'Tesla', now() - interval '3 days', 'TOPUP', NULL, NULL, 500.00, 25.00, 525.00, NULL, NULL),
+    (NULL, '3801045675', 'Civic', now() - interval '60 days', 'TOLL', 'ประชาชื่น (ขาเข้า)', '2', 60.00, 85.00, 25.00, NULL, NULL);
 """
 
 

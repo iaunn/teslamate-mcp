@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-11-18
+
+### Added
+- **`get_easypass_balance`** — the current Easy Pass balance, one row per
+  card, taken from the newest `ledger.toll_transactions` row of each card.
+  Returns the balance, when it last changed (and how many days ago, so a stale
+  figure is obvious), the last transaction, and `is_low` against a
+  `low_balance` threshold (default 200 THB). Cards not linked to a car are
+  included; filter with `car_name` or `card_name`. Answers "how much is left
+  on Easy Pass" in one call instead of inferring it from the toll list.
+
 ## [1.3.1] - 2026-11-15
 
 ### Fixed

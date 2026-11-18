@@ -1,0 +1,63 @@
+name = "get_easypass_balance"
+description = "Current Easy Pass balance per card (one row per card) from the newest row in ledger.toll_transactions — use this to answer 'how much is left on Easy Pass'. Returns balance, when it last changed (local time) and how many days ago, the last transaction (TOLL/TOPUP, amount, plaza), and is_low when the balance is under low_balance. A large days_since_update means the card has not been used recently, so the figure may be stale. Optional filters: car_name, card_name (e.g. Tesla, Civic)."
+
+[[params]]
+name = "car_name"
+type = "string"
+description = "Case-insensitive substring match on the car's name. Omit for all cards (cards not linked to a car are included)."
+
+[[params]]
+name = "card_name"
+type = "string"
+description = "Case-insensitive substring match on the Easy Pass card label (e.g. Tesla, Civic)."
+
+[[params]]
+name = "low_balance"
+type = "number"
+description = "Balance (THB) below which is_low is true."
+default = 200
+minimum = 0
+
+[[output]]
+name = "car_name"
+type = "string"
+
+[[output]]
+name = "card_name"
+type = "string"
+
+[[output]]
+name = "card_number"
+type = "string"
+
+[[output]]
+name = "license_plate"
+type = "string"
+
+[[output]]
+name = "balance"
+type = "number"
+
+[[output]]
+name = "as_of"
+type = "string"
+
+[[output]]
+name = "days_since_update"
+type = "number"
+
+[[output]]
+name = "last_tx_type"
+type = "string"
+
+[[output]]
+name = "last_amount"
+type = "number"
+
+[[output]]
+name = "last_plaza"
+type = "string"
+
+[[output]]
+name = "is_low"
+type = "boolean"
